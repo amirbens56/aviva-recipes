@@ -1,0 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Frank+Ruhl+Libre:wght@300;400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #f5f0e8;
+  --paper-dark: #e8e0cc;
+  --ink: #2c1810;
+  --ink-light: #5c3d2e;
+  --accent: #8b4513;
+  --accent-light: #cd853f;
+  --gold: #b8860b;
+  --shadow: rgba(44, 24, 16, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #3d2b1f;
+  background-image: 
+    radial-gradient(ellipse at center, #5c3d2e 0%, #2c1810 70%);
+  min-height: 100vh;
+  font-family: 'Frank Ruhl Libre', serif;
+  color: var(--ink);
+  direction: rtl;
+}
+
+.book-page {
+  background: var(--paper);
+  background-image: 
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba(232,224,204,0.3) 0%, transparent 100%);
+  position: relative;
+}
+
+.book-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    transparent,
+    transparent 27px,
+    rgba(139, 69, 19, 0.07) 28px
+  );
+  pointer-events: none;
+}
+
+.vintage-title {
+  font-family: 'Playfair Display', serif;
+  color: var(--accent);
+}
+
+.page-shadow-left {
+  box-shadow: inset -10px 0 30px rgba(0,0,0,0.15), 4px 0 8px rgba(0,0,0,0.1);
+}
+
+.page-shadow-right {
+  box-shadow: inset 10px 0 30px rgba(0,0,0,0.15), -4px 0 8px rgba(0,0,0,0.1);
+}
+
+.book-spine {
+  background: linear-gradient(to right, #5c3d2e, #8b4513, #5c3d2e);
+  width: 20px;
+}
+
+/* Page flip animation */
+@keyframes pageFlipLeft {
+  0% { transform: perspective(1500px) rotateY(0deg); transform-origin: right center; }
+  100% { transform: perspective(1500px) rotateY(-180deg); transform-origin: right center; }
+}
+
+@keyframes pageFlipRight {
+  0% { transform: perspective(1500px) rotateY(0deg); transform-origin: left center; }
+  100% { transform: perspective(1500px) rotateY(180deg); transform-origin: left center; }
+}
+
+.flip-left {
+  animation: pageFlipLeft 0.6s ease-in-out forwards;
+}
+
+.flip-right {
+  animation: pageFlipRight 0.6s ease-in-out forwards;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--paper-dark); }
+::-webkit-scrollbar-thumb { background: var(--accent-light); border-radius: 3px; }
+
+/* RTL inputs */
+input, textarea, select {
+  direction: rtl;
+  text-align: right;
+}
+
+.recipe-text {
+  font-family: 'Frank Ruhl Libre', serif;
+  line-height: 1.8;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.ornament {
+  color: var(--gold);
+  font-size: 1.2em;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .book-spread {
+    flex-direction: column;
+  }
+  .book-page {
+    width: 100% !important;
+  }
+}
