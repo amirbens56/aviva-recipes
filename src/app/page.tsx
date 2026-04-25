@@ -66,7 +66,7 @@ export default function Home() {
         </div>
 
         <h1 className="vintage-title text-2xl md:text-3xl text-amber-200 text-center">
-          ✦ ספר המתכונים של אביבה ✦
+          ✦ מתכונים של סבתא אביבה ✦
         </h1>
 
         <div className="flex gap-2">

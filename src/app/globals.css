@@ -20,9 +20,10 @@
 }
 
 body {
-  background: #3d2b1f;
+  background-color: #0d0400;
   background-image: 
-    radial-gradient(ellipse at center, #5c3d2e 0%, #2c1810 70%);
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%230d0400'/%3E%3Ccircle cx='60' cy='60' r='28' fill='none' stroke='%238b1a1a' stroke-width='1' opacity='0.4'/%3E%3Ccircle cx='60' cy='60' r='18' fill='none' stroke='%23b8860b' stroke-width='0.8' opacity='0.3'/%3E%3Cpath d='M60 32 Q72 46 60 60 Q48 46 60 32Z' fill='%238b1a1a' opacity='0.25'/%3E%3Cpath d='M60 88 Q72 74 60 60 Q48 74 60 88Z' fill='%238b1a1a' opacity='0.25'/%3E%3Cpath d='M32 60 Q46 72 60 60 Q46 48 32 60Z' fill='%238b1a1a' opacity='0.25'/%3E%3Cpath d='M88 60 Q74 72 60 60 Q74 48 88 60Z' fill='%238b1a1a' opacity='0.25'/%3E%3Ccircle cx='60' cy='60' r='5' fill='%23b8860b' opacity='0.35'/%3E%3Ccircle cx='0' cy='0' r='5' fill='%23b8860b' opacity='0.25'/%3E%3Ccircle cx='120' cy='0' r='5' fill='%23b8860b' opacity='0.25'/%3E%3Ccircle cx='0' cy='120' r='5' fill='%23b8860b' opacity='0.25'/%3E%3Ccircle cx='120' cy='120' r='5' fill='%23b8860b' opacity='0.25'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at center, #2d1000 0%, #0d0400 100%);
   min-height: 100vh;
   font-family: 'Frank Ruhl Libre', serif;
   color: var(--ink);

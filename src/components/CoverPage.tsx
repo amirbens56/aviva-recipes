@@ -35,10 +35,10 @@ export default function CoverPage({ totalRecipes, onOpen }: CoverPageProps) {
       <div className="text-center px-8 z-10">
         <div style={{ fontSize: 48, marginBottom: 8 }}>🍴</div>
         <h1 className="vintage-title text-5xl mb-3" style={{ color: '#5c3d2e', lineHeight: 1.2 }}>
-          ספר המתכונים
+          מתכונים של
         </h1>
         <h2 className="vintage-title text-3xl mb-6" style={{ color: '#8b4513' }}>
-          של אביבה
+          סבתא אביבה
         </h2>
         <div style={{ width: 80, height: 2, background: '#b8860b', margin: '0 auto 20px' }} />
         <p style={{ color: '#8b4513', fontFamily: 'Frank Ruhl Libre, serif', fontSize: 16 }}>
