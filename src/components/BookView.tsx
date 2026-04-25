@@ -70,30 +70,7 @@ export default function BookView({ recipes, currentPage, setCurrentPage, isAdmin
           <CoverPage totalRecipes={recipes.length} onOpen={goNext} />
         ) : (
           <>
-            {/* Left page (right side in Hebrew RTL - shows current recipe) */}
-            <div
-              className={`book-page page-shadow-left flex-1 overflow-hidden transition-transform duration-500 ${flipping && flipDir === 'right' ? 'flip-right' : ''}`}
-              style={{ minHeight: 500 }}
-            >
-              {getLeftPage() ? (
-                <RecipePage
-                  recipe={getLeftPage()!}
-                  side="right"
-                  isAdmin={isAdmin}
-                  onRefresh={onRefresh}
-                  pageNumber={currentPage}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-amber-700 opacity-30">
-                  <span className="vintage-title text-2xl">✦</span>
-                </div>
-              )}
-            </div>
-
-            {/* Spine */}
-            <div className="book-spine w-4 flex-shrink-0" />
-
-            {/* Right page */}
+            {/* עמוד ימין — תמונת מקור כתב יד */}
             <div
               className={`book-page page-shadow-right flex-1 overflow-hidden transition-transform duration-500 ${flipping && flipDir === 'left' ? 'flip-left' : ''}`}
               style={{ minHeight: 500 }}
@@ -101,14 +78,39 @@ export default function BookView({ recipes, currentPage, setCurrentPage, isAdmin
               {getRightPage() ? (
                 <RecipePage
                   recipe={getRightPage()!}
+                  side="right"
+                  showMode="original"
+                  isAdmin={isAdmin}
+                  onRefresh={onRefresh}
+                  pageNumber={currentPage}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full opacity-30">
+                  <span className="vintage-title text-amber-700 text-2xl">✦</span>
+                </div>
+              )}
+            </div>
+
+            {/* Spine */}
+            <div className="book-spine w-4 flex-shrink-0" />
+
+            {/* עמוד שמאל — מתכון מודפס */}
+            <div
+              className={`book-page page-shadow-left flex-1 overflow-hidden transition-transform duration-500 ${flipping && flipDir === 'right' ? 'flip-right' : ''}`}
+              style={{ minHeight: 500 }}
+            >
+              {getLeftPage() ? (
+                <RecipePage
+                  recipe={getLeftPage()!}
                   side="left"
+                  showMode="printed"
                   isAdmin={isAdmin}
                   onRefresh={onRefresh}
                   pageNumber={currentPage + 1}
                 />
               ) : (
-                <div className="flex items-center justify-center h-full opacity-30">
-                  <span className="vintage-title text-amber-700 text-2xl">✦</span>
+                <div className="flex items-center justify-center h-full text-amber-700 opacity-30">
+                  <span className="vintage-title text-2xl">✦</span>
                 </div>
               )}
             </div>
