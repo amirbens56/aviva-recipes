@@ -1,43 +1,81 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import { supabase, ExtraImage } from '@/lib/supabase'
 
-interface ExtraImagesLayerProps {
+interface Props {
   images: ExtraImage[]
   isAdmin: boolean
   recipeId: string
   onUpdate: () => void
 }
 
-export default function ExtraImagesLayer({ images, isAdmin, recipeId, onUpdate }: ExtraImagesLayerProps) {
+export default function ExtraImagesLayer({ images, isAdmin, recipeId, onUpdate }: Props) {
   const [localImages, setLocalImages] = useState<ExtraImage[]>(images)
   const [selected, setSelected] = useState<number | null>(null)
-  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   async function saveImages(imgs: ExtraImage[]) {
     await supabase.from('recipes').update({ extra_images: imgs }).eq('id', recipeId)
     onUpdate()
   }
 
-  function startDrag(e: React.MouseEvent, idx: number) {
+  function startDrag(e: React.MouseEvent | React.TouchEvent, idx: number) {
     if (!isAdmin) return
     e.preventDefault()
+    e.stopPropagation()
     setSelected(idx)
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: localImages[idx].x,
-      origY: localImages[idx].y,
-    }
 
-    function onMove(e: MouseEvent) {
-      if (!dragRef.current) return
-      const dx = e.clientX - dragRef.current.startX
-      const dy = e.clientY - dragRef.current.startY
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    const origX = localImages[idx].x
+    const origY = localImages[idx].y
+    const startX = clientX
+    const startY = clientY
+
+    function onMove(e: MouseEvent | TouchEvent) {
+      const cx = 'touches' in e ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX
+      const cy = 'touches' in e ? (e as TouchEvent).touches[0].clientY : (e as MouseEvent).clientY
       setLocalImages(prev => {
         const updated = [...prev]
-        updated[idx] = { ...updated[idx], x: dragRef.current!.origX + dx, y: dragRef.current!.origY + dy }
+        updated[idx] = { ...updated[idx], x: origX + cx - startX, y: origY + cy - startY }
+        return updated
+      })
+    }
+
+    function onUp() {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('touchend', onUp)
+      setLocalImages(prev => { saveImages(prev); return prev })
+    }
+
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    document.addEventListener('touchmove', onMove, { passive: false })
+    document.addEventListener('touchend', onUp)
+  }
+
+  function startResize(e: React.MouseEvent, idx: number) {
+    e.preventDefault()
+    e.stopPropagation()
+    const startX = e.clientX
+    const startY = e.clientY
+    const origW = localImages[idx].width
+    const origH = localImages[idx].height
+
+    function onMove(e: MouseEvent) {
+      const dx = e.clientX - startX
+      const dy = e.clientY - startY
+      const delta = (dx + dy) / 2
+      setLocalImages(prev => {
+        const updated = [...prev]
+        updated[idx] = {
+          ...updated[idx],
+          width: Math.max(50, origW + delta),
+          height: Math.max(50, origH + delta),
+        }
         return updated
       })
     }
@@ -59,25 +97,22 @@ export default function ExtraImagesLayer({ images, isAdmin, recipeId, onUpdate }
     saveImages(updated)
   }
 
-  function resize(idx: number, delta: number) {
-    const updated = [...localImages]
-    updated[idx] = {
-      ...updated[idx],
-      width: Math.max(50, updated[idx].width + delta),
-      height: Math.max(50, updated[idx].height + delta),
-    }
-    setLocalImages(updated)
-    saveImages(updated)
-  }
-
   async function removeImage(idx: number) {
     const updated = localImages.filter((_, i) => i !== idx)
     setLocalImages(updated)
     await saveImages(updated)
+    setSelected(null)
   }
 
+  if (localImages.length === 0) return null
+
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+    <div
+      ref={containerRef}
+      className="absolute inset-0 pointer-events-none"
+      style={{ zIndex: 10 }}
+      onClick={() => setSelected(null)}
+    >
       {localImages.map((img, idx) => (
         <div
           key={idx}
@@ -92,10 +127,11 @@ export default function ExtraImagesLayer({ images, isAdmin, recipeId, onUpdate }
             cursor: isAdmin ? 'move' : 'default',
             border: selected === idx && isAdmin ? '2px dashed #b8860b' : '2px solid transparent',
             borderRadius: 4,
-            overflow: 'visible',
+            userSelect: 'none',
           }}
           onMouseDown={e => startDrag(e, idx)}
-          onClick={() => isAdmin && setSelected(idx)}
+          onTouchStart={e => startDrag(e, idx)}
+          onClick={e => { e.stopPropagation(); isAdmin && setSelected(idx) }}
         >
           <img
             src={img.url}
@@ -105,19 +141,37 @@ export default function ExtraImagesLayer({ images, isAdmin, recipeId, onUpdate }
             draggable={false}
           />
 
-          {/* Controls */}
+          {/* כפתורי שליטה */}
           {isAdmin && selected === idx && (
-            <div
-              className="absolute flex gap-1"
-              style={{ top: -28, right: 0, pointerEvents: 'auto' }}
-              onMouseDown={e => e.stopPropagation()}
-            >
-              <button onClick={() => rotate(idx, -15)} className="bg-amber-700 text-white text-xs px-1 rounded">↺</button>
-              <button onClick={() => rotate(idx, 15)} className="bg-amber-700 text-white text-xs px-1 rounded">↻</button>
-              <button onClick={() => resize(idx, -20)} className="bg-amber-700 text-white text-xs px-1 rounded">−</button>
-              <button onClick={() => resize(idx, 20)} className="bg-amber-700 text-white text-xs px-1 rounded">+</button>
-              <button onClick={() => removeImage(idx)} className="bg-red-600 text-white text-xs px-1 rounded">✕</button>
-            </div>
+            <>
+              {/* סרגל כלים */}
+              <div
+                className="absolute flex gap-1 bg-amber-900/90 rounded px-1 py-0.5"
+                style={{ top: -30, right: 0, pointerEvents: 'auto', whiteSpace: 'nowrap' }}
+                onMouseDown={e => e.stopPropagation()}
+              >
+                <button onClick={() => rotate(idx, -15)} className="bg-amber-700 text-white text-xs px-1.5 py-0.5 rounded hover:bg-amber-600">↺</button>
+                <button onClick={() => rotate(idx, 15)} className="bg-amber-700 text-white text-xs px-1.5 py-0.5 rounded hover:bg-amber-600">↻</button>
+                <button onClick={() => removeImage(idx)} className="bg-red-600 text-white text-xs px-1.5 py-0.5 rounded hover:bg-red-700">✕</button>
+              </div>
+
+              {/* ידית שינוי גודל */}
+              <div
+                onMouseDown={e => startResize(e, idx)}
+                style={{
+                  position: 'absolute',
+                  bottom: -6,
+                  left: -6,
+                  width: 14,
+                  height: 14,
+                  background: '#b8860b',
+                  borderRadius: '50%',
+                  cursor: 'nwse-resize',
+                  pointerEvents: 'auto',
+                  border: '2px solid white',
+                }}
+              />
+            </>
           )}
         </div>
       ))}

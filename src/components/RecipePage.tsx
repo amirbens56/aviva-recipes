@@ -167,6 +167,27 @@ export default function RecipePage({ recipe, side, showMode, isAdmin, onRefresh,
             <div className="recipe-text text-xs" style={{ paddingRight: 8 }}>{recipe.instructions}</div>
           </div>
         )}
+
+        {/* תמונות נוספות מתחת למודפס */}
+        {recipe.extra_images && recipe.extra_images.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2 justify-center">
+            {recipe.extra_images.map((img: any, idx: number) => (
+              <img
+                key={idx}
+                src={img.url}
+                alt=""
+                className="rounded object-cover"
+                style={{ width: img.width || 120, height: img.height || 120, transform: `rotate(${img.rotation || 0}deg)` }}
+                crossOrigin="anonymous"
+              />
+            ))}
+          </div>
+        )}
+
+        {/* הוסף תמונה לעמוד מודפס */}
+        {isAdmin && (
+          <PrintedExtraUpload recipeId={recipe.id} existingImages={recipe.extra_images || []} onRefresh={onRefresh} />
+        )}
       </div>
     </div>
   )
@@ -223,6 +244,37 @@ function EditForm({ editData, setEditData, onSave, onCancel, saving, recipeId, e
         </button>
         <button onClick={onCancel} className="flex-1 bg-gray-400 text-white rounded py-1 text-sm">ביטול</button>
       </div>
+    </div>
+  )
+}
+
+function PrintedExtraUpload({ recipeId, existingImages, onRefresh }: any) {
+  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const ext = file.name.split('.').pop()
+    const path = `extra/${recipeId}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('recipe-images').upload(path, file)
+    if (!error) {
+      const { data } = supabase.storage.from('recipe-images').getPublicUrl(path)
+      const newImg = { url: data.publicUrl, x: 0, y: 0, width: 120, height: 120, rotation: 0 }
+      await supabase.from('recipes').update({ extra_images: [...existingImages, newImg] }).eq('id', recipeId)
+      onRefresh()
+    }
+    setUploading(false)
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  return (
+    <div className="mt-2 text-center">
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" id={`printed-extra-${recipeId}`} />
+      <label htmlFor={`printed-extra-${recipeId}`} className="cursor-pointer text-xs text-amber-700 hover:text-amber-900">
+        {uploading ? '⏳ מעלה...' : '📷 הוסף תמונה מתחת למתכון'}
+      </label>
     </div>
   )
 }
