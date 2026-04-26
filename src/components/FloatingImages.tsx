@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export type FloatingImage = {
@@ -18,24 +18,28 @@ interface FloatingImagesProps {
   recipeId: string
   field: 'extra_images' | 'printed_images'
   onUpdate: () => void
-  containerRef: React.RefObject<HTMLDivElement>
+  topOffset: number // גובה האזור שמעליו — תמונות לא יכנסו לשם
 }
 
-export default function FloatingImages({ images, isAdmin, recipeId, field, onUpdate, containerRef }: FloatingImagesProps) {
+export default function FloatingImages({ images, isAdmin, recipeId, field, onUpdate, topOffset }: FloatingImagesProps) {
   const [localImages, setLocalImages] = useState<FloatingImage[]>(images)
   const [selected, setSelected] = useState<number | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   async function saveImages(imgs: FloatingImage[]) {
     await supabase.from('recipes').update({ [field]: imgs }).eq('id', recipeId)
     onUpdate()
   }
 
-  // ===== גרירה =====
   function startDrag(e: React.MouseEvent, idx: number) {
     if (!isAdmin) return
+    // אם לוחצים על כפתור — לא מתחילים גרירה
+    const target = e.target as HTMLElement
+    if (target.closest('.img-control-btn')) return
+
     e.preventDefault()
     e.stopPropagation()
-    setSelected(idx)
+    setIsDragging(true)
 
     const startX = e.clientX
     const startY = e.clientY
@@ -43,11 +47,10 @@ export default function FloatingImages({ images, isAdmin, recipeId, field, onUpd
     const origY = localImages[idx].y
 
     function onMove(ev: MouseEvent) {
-      const dx = ev.clientX - startX
-      const dy = ev.clientY - startY
+      const newY = Math.max(topOffset, origY + ev.clientY - startY)
       setLocalImages(prev => {
         const updated = [...prev]
-        updated[idx] = { ...updated[idx], x: origX + dx, y: origY + dy }
+        updated[idx] = { ...updated[idx], x: origX + ev.clientX - startX, y: newY }
         return updated
       })
     }
@@ -55,6 +58,7 @@ export default function FloatingImages({ images, isAdmin, recipeId, field, onUpd
     function onUp() {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
+      setIsDragging(false)
       setLocalImages(prev => { saveImages([...prev]); return prev })
     }
 
@@ -62,26 +66,20 @@ export default function FloatingImages({ images, isAdmin, recipeId, field, onUpd
     document.addEventListener('mouseup', onUp)
   }
 
-  // ===== שינוי גודל בגרירת פינה =====
   function startResize(e: React.MouseEvent, idx: number) {
     e.preventDefault()
     e.stopPropagation()
 
     const startX = e.clientX
-    const startY = e.clientY
     const origW = localImages[idx].width
     const origH = localImages[idx].height
-    const aspect = origW / origH
+    const aspect = origH / origW
 
     function onMove(ev: MouseEvent) {
-      const dx = ev.clientX - startX
-      const dy = ev.clientY - startY
-      const delta = (Math.abs(dx) > Math.abs(dy) ? dx : dy)
-      const newW = Math.max(50, origW + delta)
-      const newH = Math.max(50, newW / aspect)
+      const newW = Math.max(50, origW + (ev.clientX - startX))
       setLocalImages(prev => {
         const updated = [...prev]
-        updated[idx] = { ...updated[idx], width: newW, height: newH }
+        updated[idx] = { ...updated[idx], width: newW, height: newW * aspect }
         return updated
       })
     }
@@ -96,19 +94,27 @@ export default function FloatingImages({ images, isAdmin, recipeId, field, onUpd
     document.addEventListener('mouseup', onUp)
   }
 
-  // ===== סיבוב =====
-  function rotate(idx: number, delta: number) {
+  function rotate(e: React.MouseEvent, idx: number, delta: number) {
+    e.preventDefault()
+    e.stopPropagation()
     const updated = [...localImages]
     updated[idx] = { ...updated[idx], rotation: (updated[idx].rotation || 0) + delta }
     setLocalImages(updated)
     saveImages(updated)
   }
 
-  async function removeImage(idx: number) {
+  function removeImg(e: React.MouseEvent, idx: number) {
+    e.preventDefault()
+    e.stopPropagation()
     const updated = localImages.filter((_, i) => i !== idx)
     setLocalImages(updated)
     setSelected(null)
-    await saveImages(updated)
+    saveImages(updated)
+  }
+
+  function selectImg(e: React.MouseEvent, idx: number) {
+    e.stopPropagation()
+    if (isAdmin) setSelected(selected === idx ? null : idx)
   }
 
   if (localImages.length === 0) return null
@@ -116,92 +122,110 @@ export default function FloatingImages({ images, isAdmin, recipeId, field, onUpd
   return (
     <div
       className="absolute inset-0 pointer-events-none"
-      style={{ zIndex: 15 }}
+      style={{ zIndex: 10 }}
       onClick={() => setSelected(null)}
     >
-      {localImages.map((img, idx) => (
-        <div
-          key={idx}
-          style={{
-            position: 'absolute',
-            left: img.x,
-            top: img.y,
-            width: img.width,
-            height: img.height,
-            transform: `rotate(${img.rotation || 0}deg)`,
-            pointerEvents: isAdmin ? 'auto' : 'none',
-            cursor: isAdmin ? 'move' : 'default',
-            outline: selected === idx && isAdmin ? '2px dashed #b8860b' : '2px solid transparent',
-            borderRadius: 4,
-            userSelect: 'none',
-            transformOrigin: 'center center',
-          }}
-          onMouseDown={e => startDrag(e, idx)}
-          onClick={e => { e.stopPropagation(); isAdmin && setSelected(idx) }}
-        >
-          <img
-            src={img.url}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 3, display: 'block' }}
-            crossOrigin="anonymous"
-            draggable={false}
-          />
+      {localImages.map((img, idx) => {
+        const isSelected = selected === idx && isAdmin
+        return (
+          <div
+            key={idx}
+            style={{
+              position: 'absolute',
+              left: img.x,
+              top: img.y,
+              width: img.width,
+              height: img.height,
+              transform: `rotate(${img.rotation || 0}deg)`,
+              transformOrigin: 'center center',
+              pointerEvents: isAdmin ? 'auto' : 'none',
+              cursor: isAdmin ? (isDragging ? 'grabbing' : 'grab') : 'default',
+              outline: isSelected ? '2px dashed #b8860b' : '2px solid transparent',
+              borderRadius: 4,
+              userSelect: 'none',
+            }}
+            onMouseDown={e => startDrag(e, idx)}
+            onClick={e => selectImg(e, idx)}
+          >
+            <img
+              src={img.url}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 3, display: 'block', pointerEvents: 'none' }}
+              crossOrigin="anonymous"
+              draggable={false}
+            />
 
-          {/* כלים — מוצגים רק כשנבחר */}
-          {isAdmin && selected === idx && (
-            <>
-              {/* סרגל כלים עליון */}
-              <div
-                className="absolute flex gap-1 rounded px-1 py-0.5"
-                style={{
-                  top: -32,
-                  right: 0,
-                  background: 'rgba(120,60,10,0.92)',
-                  pointerEvents: 'auto',
-                  whiteSpace: 'nowrap',
-                  zIndex: 20,
-                }}
-                onMouseDown={e => e.stopPropagation()}
-              >
-                <button
-                  onClick={e => { e.stopPropagation(); rotate(idx, -15) }}
-                  className="text-white text-xs px-1.5 py-0.5 rounded hover:bg-amber-600"
-                  title="סובב שמאל"
-                >↺</button>
-                <button
-                  onClick={e => { e.stopPropagation(); rotate(idx, 15) }}
-                  className="text-white text-xs px-1.5 py-0.5 rounded hover:bg-amber-600"
-                  title="סובב ימין"
-                >↻</button>
-                <button
-                  onClick={e => { e.stopPropagation(); removeImage(idx) }}
-                  className="bg-red-600 text-white text-xs px-1.5 py-0.5 rounded hover:bg-red-700"
-                  title="מחק"
-                >✕</button>
-              </div>
+            {/* כפתורי שליטה — מוצגים כשנבחרת, לא מפעילים גרירה */}
+            {isSelected && (
+              <>
+                {/* סרגל כלים — מחוץ לתמונה למעלה */}
+                <div
+                  className="img-control-btn"
+                  style={{
+                    position: 'absolute',
+                    top: -36,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    display: 'flex',
+                    gap: 4,
+                    background: 'rgba(100,50,5,0.95)',
+                    borderRadius: 6,
+                    padding: '3px 6px',
+                    zIndex: 30,
+                    pointerEvents: 'auto',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                  }}
+                  onMouseDown={e => e.stopPropagation()}
+                >
+                  <button
+                    className="img-control-btn"
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => rotate(e, idx, -15)}
+                    style={{ background: '#8b5e3c', color: 'white', border: 'none', borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontSize: 14 }}
+                    title="סובב שמאל"
+                  >↺</button>
+                  <button
+                    className="img-control-btn"
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => rotate(e, idx, 15)}
+                    style={{ background: '#8b5e3c', color: 'white', border: 'none', borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontSize: 14 }}
+                    title="סובב ימין"
+                  >↻</button>
+                  <button
+                    className="img-control-btn"
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => removeImg(e, idx)}
+                    style={{ background: '#b91c1c', color: 'white', border: 'none', borderRadius: 4, padding: '2px 7px', cursor: 'pointer', fontSize: 14 }}
+                    title="מחק"
+                  >✕</button>
+                </div>
 
-              {/* ידית שינוי גודל — פינה ימין תחתון */}
-              <div
-                onMouseDown={e => startResize(e, idx)}
-                onClick={e => e.stopPropagation()}
-                style={{
-                  position: 'absolute',
-                  bottom: -7,
-                  right: -7,
-                  width: 16,
-                  height: 16,
-                  background: '#b8860b',
-                  borderRadius: '50%',
-                  cursor: 'se-resize',
-                  pointerEvents: 'auto',
-                  border: '2px solid white',
-                  zIndex: 20,
-                }}
-              />
-            </>
-          )}
-        </div>
-      ))}
+                {/* ידית שינוי גודל — פינה ימין תחתון */}
+                <div
+                  className="img-control-btn"
+                  onMouseDown={e => startResize(e, idx)}
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    bottom: -8,
+                    right: -8,
+                    width: 18,
+                    height: 18,
+                    background: '#b8860b',
+                    borderRadius: '50%',
+                    cursor: 'se-resize',
+                    pointerEvents: 'auto',
+                    border: '2px solid white',
+                    zIndex: 30,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                  }}
+                />
+              </>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

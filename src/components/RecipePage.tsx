@@ -118,6 +118,7 @@ export default function RecipePage({ recipe, side, showMode, isAdmin, onRefresh,
             field="extra_images"
             onUpdate={onRefresh}
             containerRef={containerRef}
+            topOffset={imageAreaHeight}
           />
         )}
 
@@ -201,6 +202,7 @@ export default function RecipePage({ recipe, side, showMode, isAdmin, onRefresh,
           field="printed_images"
           onUpdate={onRefresh}
           containerRef={containerRef}
+          topOffset={printedAreaHeight}
         />
       )}
     </div>
