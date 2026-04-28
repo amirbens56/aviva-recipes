@@ -33,12 +33,34 @@ export default function AddRecipeModal({ onClose, onSaved }: Props) {
     reader.readAsDataURL(file)
   }
 
+  function compressImage(dataUrl: string): Promise<string> {
+    return new Promise(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        const maxSize = 1200
+        let { width, height } = img
+        if (width > maxSize || height > maxSize) {
+          if (width > height) { height = Math.round(height * maxSize / width); width = maxSize }
+          else { width = Math.round(width * maxSize / height); height = maxSize }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', 0.75))
+      }
+      img.src = dataUrl
+    })
+  }
+
   async function handleScan() {
     if (!imageFile || !imagePreview) return
     setScanning(true)
     try {
-      const base64 = imagePreview.split(',')[1]
-      const mediaType = imageFile.type || 'image/jpeg'
+      const compressed = await compressImage(imagePreview)
+      const base64 = compressed.split(',')[1]
+      const mediaType = 'image/jpeg'
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
