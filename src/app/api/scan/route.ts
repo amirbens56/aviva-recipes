@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const { imageBase64, mediaType } = await req.json()
 
     const response = await client.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-sonnet-4-5',
       max_tokens: 2000,
       messages: [
         {
