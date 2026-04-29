@@ -33,27 +33,34 @@ export default function AddRecipeModal({ onClose, onSaved }: Props) {
     reader.readAsDataURL(file)
   }
 
-  // כיווץ תמונה ושליחת base64 ישירות
-  function compressToBase64(file: File, maxSize: number): Promise<string> {
+  // כיווץ תמונה ושליחת base64
+  function compressFile(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
-      const img = new Image()
-      const url = URL.createObjectURL(file)
-      img.onload = () => {
-        URL.revokeObjectURL(url)
-        let { width, height } = img
-        if (width > maxSize || height > maxSize) {
-          if (width > height) { height = Math.round(height * maxSize / width); width = maxSize }
-          else { width = Math.round(width * maxSize / height); height = maxSize }
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string
+        const img = new Image()
+        img.onload = () => {
+          const maxSize = 1400
+          let w = img.width
+          let h = img.height
+          if (w > maxSize || h > maxSize) {
+            if (w > h) { h = Math.round(h * maxSize / w); w = maxSize }
+            else { w = Math.round(w * maxSize / h); h = maxSize }
+          }
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          if (!ctx) { reject(new Error('no ctx')); return }
+          ctx.drawImage(img, 0, 0, w, h)
+          resolve(canvas.toDataURL('image/jpeg', 0.88).split(',')[1])
         }
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.88)
-        resolve(dataUrl.split(',')[1])
+        img.onerror = reject
+        img.src = dataUrl
       }
-      img.onerror = reject
-      img.src = url
+      reader.onerror = reject
+      reader.readAsDataURL(file)
     })
   }
 
@@ -61,8 +68,7 @@ export default function AddRecipeModal({ onClose, onSaved }: Props) {
     if (!imageFile) return
     setScanning(true)
     try {
-      // כיווץ ושליחה ישירה ללא Supabase
-      const base64 = await compressToBase64(imageFile, 1400)
+      const base64 = await compressFile(imageFile)
       
       const res = await fetch('/api/scan', {
         method: 'POST',
