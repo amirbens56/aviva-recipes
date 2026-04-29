@@ -33,29 +33,38 @@ export default function AddRecipeModal({ onClose, onSaved }: Props) {
     reader.readAsDataURL(file)
   }
 
+  function compressImage(dataUrl: string): Promise<string> {
+    return new Promise(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        const maxSize = 1200
+        let { width, height } = img
+        if (width > maxSize || height > maxSize) {
+          if (width > height) { height = Math.round(height * maxSize / width); width = maxSize }
+          else { width = Math.round(width * maxSize / height); height = maxSize }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', 0.75))
+      }
+      img.src = dataUrl
+    })
+  }
+
   async function handleScan() {
-    if (!imageFile) return
+    if (!imageFile || !imagePreview) return
     setScanning(true)
     try {
-      // העלאת התמונה ל-Supabase קודם
-      const { supabase } = await import('@/lib/supabase')
-      const ext = imageFile.name.split('.').pop() || 'jpg'
-      const path = `scan-temp/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('recipe-images')
-        .upload(path, imageFile, { upsert: true })
-      
-      if (uploadError) throw new Error('שגיאה בהעלאת תמונה')
-      
-      const { data: urlData } = supabase.storage
-        .from('recipe-images')
-        .getPublicUrl(path)
-      
-      // שליחת URL לסריקה
+      const compressed = await compressImage(imagePreview)
+      const base64 = compressed.split(',')[1]
+      const mediaType = 'image/jpeg'
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: urlData.publicUrl }),
+        body: JSON.stringify({ imageBase64: base64, mediaType }),
       })
       const data = await res.json()
       if (data.success) {

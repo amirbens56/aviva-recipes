@@ -5,7 +5,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageBase64, mediaType } = await req.json()
+    const { imageUrl } = await req.json()
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-5',
@@ -17,9 +17,8 @@ export async function POST(req: NextRequest) {
             {
               type: 'image',
               source: {
-                type: 'base64',
-                media_type: mediaType || 'image/jpeg',
-                data: imageBase64,
+                type: 'url',
+                url: imageUrl,
               },
             },
             {
