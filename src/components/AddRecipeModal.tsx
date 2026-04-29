@@ -33,17 +33,42 @@ export default function AddRecipeModal({ onClose, onSaved }: Props) {
     reader.readAsDataURL(file)
   }
 
+  // כיווץ תמונה בדפדפן לפני העלאה
+  function resizeImage(file: File, maxSize: number): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        let { width, height } = img
+        if (width > maxSize || height > maxSize) {
+          if (width > height) { height = Math.round(height * maxSize / width); width = maxSize }
+          else { width = Math.round(width * maxSize / height); height = maxSize }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Blob failed')), 'image/jpeg', 0.9)
+      }
+      img.onerror = reject
+      img.src = url
+    })
+  }
+
   async function handleScan() {
     if (!imageFile) return
     setScanning(true)
     try {
-      // העלאת התמונה ל-Supabase קודם
+      // כיווץ ל-1400px לשמירת איכות קריאה
+      const resized = await resizeImage(imageFile, 1400)
+      
+      // העלאת התמונה המכווצת ל-Supabase
       const { supabase } = await import('@/lib/supabase')
-      const ext = imageFile.name.split('.').pop() || 'jpg'
-      const path = `scan-temp/${Date.now()}.${ext}`
+      const path = `scan-temp/${Date.now()}.jpg`
       const { error: uploadError } = await supabase.storage
         .from('recipe-images')
-        .upload(path, imageFile, { upsert: true })
+        .upload(path, resized, { upsert: true, contentType: 'image/jpeg' })
       
       if (uploadError) throw new Error('שגיאה בהעלאת תמונה')
       
