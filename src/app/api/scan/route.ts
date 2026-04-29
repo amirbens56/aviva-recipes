@@ -5,7 +5,32 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageBase64, mediaType } = await req.json()
+    const body = await req.json()
+    const { imageUrl, imageBase64, mediaType } = body
+
+    let base64Data: string
+    let mimeType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' = 'image/jpeg'
+
+    if (imageUrl) {
+      // הורדת תמונה מ-URL
+      const imgResponse = await fetch(imageUrl)
+      if (!imgResponse.ok) throw new Error(`HTTP ${imgResponse.status}`)
+      const arrayBuffer = await imgResponse.arrayBuffer()
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) throw new Error('Empty image buffer')
+      base64Data = Buffer.from(arrayBuffer).toString('base64')
+      const ct = imgResponse.headers.get('content-type') || 'image/jpeg'
+      if (ct.includes('png')) mimeType = 'image/png'
+      else if (ct.includes('webp')) mimeType = 'image/webp'
+      console.log(`Image fetched: ${arrayBuffer.byteLength} bytes, type: ${mimeType}`)
+    } else if (imageBase64) {
+      // base64 ישיר
+      base64Data = imageBase64
+      if (mediaType?.includes('png')) mimeType = 'image/png'
+    } else {
+      throw new Error('No image provided')
+    }
+
+    if (!base64Data || base64Data.length === 0) throw new Error('Empty base64 data')
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-5',
@@ -18,8 +43,8 @@ export async function POST(req: NextRequest) {
               type: 'image',
               source: {
                 type: 'base64',
-                media_type: mediaType || 'image/jpeg',
-                data: imageBase64,
+                media_type: mimeType,
+                data: base64Data,
               },
             },
             {
