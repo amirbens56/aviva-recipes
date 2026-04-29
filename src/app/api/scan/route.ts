@@ -5,16 +5,10 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageUrl } = await req.json()
-    if (!imageUrl) throw new Error('No image URL')
-
-    const imgResponse = await fetch(imageUrl)
-    if (!imgResponse.ok) throw new Error(`HTTP ${imgResponse.status}`)
-    const arrayBuffer = await imgResponse.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    console.log(`Image: ${buffer.length} bytes`)
+    const { imageBase64, mediaType } = await req.json()
+    if (!imageBase64) throw new Error('No image data')
     
-    const base64Data = buffer.toString('base64')
+    console.log(`base64 length: ${imageBase64.length}`)
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-5',
@@ -24,7 +18,11 @@ export async function POST(req: NextRequest) {
         content: [
           {
             type: 'image',
-            source: { type: 'base64', media_type: 'image/jpeg', data: base64Data },
+            source: {
+              type: 'base64',
+              media_type: (mediaType || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+              data: imageBase64,
+            },
           },
           {
             type: 'text',

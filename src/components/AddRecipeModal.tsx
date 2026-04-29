@@ -33,8 +33,8 @@ export default function AddRecipeModal({ onClose, onSaved }: Props) {
     reader.readAsDataURL(file)
   }
 
-  // כיווץ תמונה בדפדפן לפני העלאה
-  function resizeImage(file: File, maxSize: number): Promise<Blob> {
+  // כיווץ תמונה ושליחת base64 ישירות
+  function compressToBase64(file: File, maxSize: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
@@ -49,7 +49,8 @@ export default function AddRecipeModal({ onClose, onSaved }: Props) {
         canvas.width = width
         canvas.height = height
         canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Blob failed')), 'image/jpeg', 0.9)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88)
+        resolve(dataUrl.split(',')[1])
       }
       img.onerror = reject
       img.src = url
@@ -60,27 +61,13 @@ export default function AddRecipeModal({ onClose, onSaved }: Props) {
     if (!imageFile) return
     setScanning(true)
     try {
-      // כיווץ ל-1400px לשמירת איכות קריאה
-      const resized = await resizeImage(imageFile, 1400)
+      // כיווץ ושליחה ישירה ללא Supabase
+      const base64 = await compressToBase64(imageFile, 1400)
       
-      // העלאת התמונה המכווצת ל-Supabase
-      const { supabase } = await import('@/lib/supabase')
-      const path = `scan-temp/${Date.now()}.jpg`
-      const { error: uploadError } = await supabase.storage
-        .from('recipe-images')
-        .upload(path, resized, { upsert: true, contentType: 'image/jpeg' })
-      
-      if (uploadError) throw new Error('שגיאה בהעלאת תמונה')
-      
-      const { data: urlData } = supabase.storage
-        .from('recipe-images')
-        .getPublicUrl(path)
-      
-      // שליחת URL לסריקה
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: urlData.publicUrl }),
+        body: JSON.stringify({ imageBase64: base64, mediaType: 'image/jpeg' }),
       })
       const data = await res.json()
       if (data.success) {
