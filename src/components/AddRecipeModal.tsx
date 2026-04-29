@@ -36,13 +36,13 @@ export default function AddRecipeModal({ onClose, onSaved }: Props) {
 
     try {
       // קריאת הקובץ כ-ArrayBuffer ישירות
-      const arrayBuffer = await selectedFile.arrayBuffer()
-      const bytes = new Uint8Array(arrayBuffer)
-
       // כיווץ דרך canvas
       const blob = await compressToJpeg(selectedFile, 1400)
       const compressedArray = await blob.arrayBuffer()
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(compressedArray)))
+      const uint8 = new Uint8Array(compressedArray)
+      let binary = ''
+      uint8.forEach(b => { binary += String.fromCharCode(b) })
+      const base64 = btoa(binary)
 
       console.log('Sending scan, base64 length:', base64.length)
 
